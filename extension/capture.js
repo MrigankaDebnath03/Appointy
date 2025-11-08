@@ -79,6 +79,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     statusEl.textContent = 'Saving...';
     statusEl.className = 'status';
 
+    // Generate tags from AI content
+    const generateTags = (summary, imageDesc) => {
+      const tags = new Set();
+      
+      // Helper to extract key terms
+      const extractTerms = (text) => {
+        if (!text) return [];
+        
+        // Remove special characters and split into words
+        const words = text.toLowerCase()
+          .replace(/[^\w\s]/g, ' ')
+          .split(/\s+/)
+          .filter(w => w.length > 3);  // Filter out short words
+          
+        // Remove common words
+        const commonWords = new Set(['this', 'that', 'these', 'those', 'there', 'their', 'they', 'what', 'where', 'when', 'have', 'with']);
+        return words.filter(w => !commonWords.has(w));
+      };
+      
+      // Extract terms from summary
+      if (summary) {
+        const summaryTerms = extractTerms(summary);
+        summaryTerms.slice(0, 5).forEach(term => tags.add(term)); // Take top 5 terms
+      }
+      
+      // Extract terms from image description
+      if (imageDesc) {
+        const imageTerms = extractTerms(imageDesc);
+        imageTerms.slice(0, 5).forEach(term => tags.add(term)); // Take top 5 terms
+      }
+      
+      return Array.from(tags);
+    };
+
+    const generatedTags = generateTags(
+      summaryEl ? summaryEl.value.trim() : '', 
+      imageDescEl ? imageDescEl.value.trim() : ''
+    );
+
     const record = {
       screenshot: current.screenshot || null,
       pageText: extractedText || '',
@@ -88,7 +127,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       summary: summaryEl ? summaryEl.value.trim() : '',
       imageDescription: imageDescEl ? imageDescEl.value.trim() : '',
       remainderTime: remainderInput.value || null,
-      savedAt: Date.now()
+      savedAt: Date.now(),
+      tags: generatedTags
     };
 
     console.log('Saving record:', { // Debug log

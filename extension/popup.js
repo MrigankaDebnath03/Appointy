@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <option value="hybrid">🔍 Smart Search</option>
       <option value="keyword">📝 Keyword Search</option>
       <option value="semantic">🧠 Semantic Search</option>
+      <option value="tags">🏷️ Tags Search</option>
     `;
     typeSelector.style.marginTop = '8px';
     typeSelector.style.padding = '6px';
@@ -70,9 +71,26 @@ document.addEventListener('DOMContentLoaded', async () => {
           case 'keyword':
             list = await window.db.searchRecords(searchQuery);
             break;
+          case 'tags':
+            // Handle tag search
+            const tagQuery = searchQuery.startsWith('#') ? searchQuery.slice(1) : searchQuery;
+            list = (await window.db.getAllRecords()).filter(item => 
+              item.tags && item.tags.some(tag => 
+                tag.toLowerCase().includes(tagQuery.toLowerCase())
+              )
+            );
+            break;
           case 'hybrid':
           default:
-            list = await window.db.hybridSearch(searchQuery);
+            // Include tags in hybrid search
+            const hybridResults = await window.db.hybridSearch(searchQuery);
+            const tagResults = (await window.db.getAllRecords()).filter(item =>
+              item.tags && item.tags.some(tag =>
+                tag.toLowerCase().includes(searchQuery.toLowerCase())
+              )
+            );
+            // Combine and deduplicate results
+            list = [...new Set([...hybridResults, ...tagResults])];
             break;
         }
       } else {
@@ -119,22 +137,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Add similarity indicator for semantic search results
       if (item.similarity !== undefined) {
-        const similarityBar = document.createElement('div');
-        similarityBar.className = 'similarity-bar';
-        similarityBar.style.height = '4px';
-        similarityBar.style.background = `linear-gradient(90deg, #3498db ${item.similarity * 100}%, #ecf0f1 ${item.similarity * 100}%)`;
-        similarityBar.style.marginBottom = '8px';
-        similarityBar.style.borderRadius = '2px';
-        card.appendChild(similarityBar);
+        const similarityContainer = document.createElement('div');
+        similarityContainer.className = 'similarity-text';
         
-        const similarityText = document.createElement('div');
-        similarityText.className = 'similarity-text';
-        similarityText.style.fontSize = '11px';
-        similarityText.style.color = '#7f8c8d';
-        similarityText.style.marginBottom = '4px';
-        similarityText.style.padding = '0 12px';
-        similarityText.textContent = `Relevance: ${Math.round(item.similarity * 100)}%`;
-        card.appendChild(similarityText);
+        const scoreText = document.createElement('div');
+        scoreText.className = 'similarity-score';
+        scoreText.textContent = `${Math.round(item.similarity * 100)}% match`;
+        
+        const barContainer = document.createElement('div');
+        barContainer.className = 'similarity-bar';
+        
+        const barFill = document.createElement('div');
+        barFill.className = 'similarity-bar-fill';
+        barFill.style.width = `${item.similarity * 100}%`;
+        
+        barContainer.appendChild(barFill);
+        similarityContainer.appendChild(scoreText);
+        similarityContainer.appendChild(barContainer);
+        card.appendChild(similarityContainer);
       }
 
       // Thumbnail image for the card (if screenshot available)
@@ -158,6 +178,36 @@ document.addEventListener('DOMContentLoaded', async () => {
       const when = new Date(item.savedAt).toLocaleString();
       const urlDisplay = item.url ? (new URL(item.url).hostname) : 'No URL';
       meta.textContent = `${when} — ${urlDisplay}`;
+
+      // Add tags if available
+      if (item.tags && item.tags.length > 0) {
+        const tagsContainer = document.createElement('div');
+        tagsContainer.className = 'tags-container';
+        tagsContainer.style.marginTop = '8px';
+        tagsContainer.style.display = 'flex';
+        tagsContainer.style.flexWrap = 'wrap';
+        tagsContainer.style.gap = '4px';
+
+        item.tags.forEach(tag => {
+          const tagEl = document.createElement('span');
+          tagEl.className = 'tag';
+          tagEl.textContent = tag;
+          tagEl.style.background = '#e9ecef';
+          tagEl.style.padding = '2px 8px';
+          tagEl.style.borderRadius = '12px';
+          tagEl.style.fontSize = '12px';
+          tagEl.style.cursor = 'pointer';
+          tagEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            searchInput.value = `#${tag}`;
+            searchType.value = 'tags';
+            refresh(searchInput.value, 'tags');
+          });
+          tagsContainer.appendChild(tagEl);
+        });
+
+        meta.appendChild(tagsContainer);
+      }
 
       const excerpt = document.createElement('div');
       excerpt.className = 'card-excerpt';
@@ -481,6 +531,49 @@ document.addEventListener('DOMContentLoaded', async () => {
       reminderSection.appendChild(currentReminder);
     }
 
+    // Tags Section
+    if (item.tags && item.tags.length > 0) {
+      const tagsSection = document.createElement('div');
+      tagsSection.style.marginTop = '16px';
+      tagsSection.style.marginBottom = '16px';
+
+      const tagsLabel = document.createElement('div');
+      tagsLabel.textContent = 'Tags:';
+      tagsLabel.style.fontWeight = 'bold';
+      tagsLabel.style.marginBottom = '8px';
+      tagsSection.appendChild(tagsLabel);
+
+      const tagsContainer = document.createElement('div');
+      tagsContainer.style.display = 'flex';
+      tagsContainer.style.flexWrap = 'wrap';
+      tagsContainer.style.gap = '8px';
+
+      item.tags.forEach(tag => {
+        const tagEl = document.createElement('span');
+        tagEl.textContent = tag;
+        tagEl.style.background = '#e9ecef';
+        tagEl.style.padding = '4px 12px';
+        tagEl.style.borderRadius = '16px';
+        tagEl.style.fontSize = '14px';
+        tagEl.style.cursor = 'pointer';
+        tagEl.style.transition = 'background-color 0.2s';
+        tagEl.addEventListener('mouseover', () => {
+          tagEl.style.backgroundColor = '#dee2e6';
+        });
+        tagEl.addEventListener('mouseout', () => {
+          tagEl.style.backgroundColor = '#e9ecef';
+        });
+        tagEl.addEventListener('click', () => {
+          window.close();
+          chrome.tabs.create({ url: chrome.runtime.getURL(`popup.html?tag=${encodeURIComponent(tag)}`) });
+        });
+        tagsContainer.appendChild(tagEl);
+      });
+
+      tagsSection.appendChild(tagsContainer);
+      inner.appendChild(tagsSection);
+    }
+
     // Saved timestamp
     const savedInfo = document.createElement('div');
     savedInfo.style.marginTop = '12px';
@@ -538,7 +631,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   examples.style.fontSize = '12px';
   examples.style.color = '#6c757d';
   examples.innerHTML = `
-    <div>Try: "programming tutorials" • "research papers about AI" • "my notes from last week"</div>
+    <div>Try: "programming tutorials" • "research papers about AI" • "#technology" • "my notes from last week"</div>
+    <div style="margin-top:4px">Use # to search by tags (e.g., #coding)</div>
   `;
   searchContainer.appendChild(examples);
 
