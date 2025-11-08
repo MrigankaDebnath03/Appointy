@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Saved Contexts</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h2>Saved Contexts</h2>
+      <div id="search-container" style="margin-bottom: 16px;">
+        <input type="text" id="search-input" placeholder="Search contexts..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+      </div>
+      <div id="cards"></div>
+      <div id="empty" class="empty">No saved contexts yet. Press Alt+S on any page to capture.</div>
+    </div>
+
+    <script src="db.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

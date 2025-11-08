@@ -1,0 +1,451 @@
+:root {
+  /* Violet-centric palette */
+  --dark-violet: #1B0030;    /* primary text */
+  --deep-violet: #5B2E8A;    /* primary accent */
+  --vibrant-violet: #8A3FFC; /* strong accent/buttons */
+  --soft-orchid: #F3E9FF;    /* subtle backgrounds */
+  --muted-green: #899D78;    /* small accents */
+  --card-border: rgba(91,46,138,0.08);
+  --muted-text: #6b5a78;
+}
+
+/* Base layout */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  margin: 0;
+  padding: 0;
+  color: var(--dark-violet);
+  background: linear-gradient(180deg, #fbf8fc 0%, #f3f0f8 100%);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+.container {
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+h2 {
+  margin-top: 0;
+  color: var(--dark-violet);
+  border-bottom: 2px solid var(--vibrant-violet);
+  padding-bottom: 10px;
+}
+
+/* Inputs and forms */
+label {
+  display:block;
+  margin-top: 12px;
+  font-weight: 600;
+  color: var(--muted-text);
+}
+
+textarea, input, .meta {
+  width:100%;
+  box-sizing: border-box;
+  padding:12px 14px;
+  margin-top:8px;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 8px;
+  font-family: inherit;
+  background: white;
+}
+
+.form-actions {
+  margin-top:16px;
+  display: flex;
+  gap: 8px;
+}
+
+.form-actions button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#save-btn {
+  background: var(--deep-violet);
+  color: white;
+}
+
+#save-btn:hover:not(:disabled) {
+  background: var(--vibrant-violet);
+}
+
+#save-btn:disabled {
+  background: #cfc0dd;
+  cursor: not-allowed;
+}
+
+#cancel-btn {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.06);
+  color: var(--muted-text);
+}
+
+#generate-summary {
+  background: var(--vibrant-violet);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+#generate-summary:hover:not(:disabled) {
+  filter: brightness(1.03);
+}
+
+#generate-summary:disabled {
+  background: #ddd;
+  cursor: not-allowed;
+}
+
+.status {
+  margin-top:12px;
+  padding: 8px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.status.success {
+  background: #eaf6ee;
+  color: #1e6b3a;
+  border: 1px solid #d4efda;
+}
+
+.status.error {
+  background: #fff0f2;
+  color: #7a1630;
+  border: 1px solid #ffd6dd;
+}
+
+/* Cards grid */
+#cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 22px;
+  margin-top: 22px;
+  padding: 0;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  break-inside: avoid;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  box-shadow: 0 8px 24px rgba(27,0,48,0.04);
+  border: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  transform: translateY(-6px) scale(1.005);
+  box-shadow: 0 20px 50px rgba(27,0,48,0.08);
+}
+
+.card-image {
+  width: 100%;
+  padding-top: 62%; /* aspect */
+  background: var(--soft-orchid);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-image img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Modal screenshot (large) - keep full screenshot visible, don't crop */
+.modal-screenshot, .modal-inner img.screenshot-small {
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  display: block;
+}
+
+.card-content {
+  padding: 18px;
+  flex: 1 1 auto;
+}
+
+.card-title {
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--dark-violet);
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.card-meta {
+  color: var(--deep-violet);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.card-excerpt {
+  color: #3b2a49;
+  margin-bottom: 12px;
+  line-height: 1.55;
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+.card-actions {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px 18px 16px;
+  border-top: 1px solid rgba(0,0,0,0.03);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,246,255,0.98));
+}
+
+.card-actions button {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.card-actions button:first-child {
+  background: var(--deep-violet);
+  color: white;
+}
+
+.card-actions button:first-child:hover {
+  background: var(--vibrant-violet);
+}
+
+.card-actions button:last-child {
+  background: transparent;
+  color: var(--deep-violet);
+  border: 1px solid rgba(91,46,138,0.12);
+}
+
+.card-actions button:last-child:hover {
+  background: rgba(138,63,252,0.06);
+}
+
+/* Modal and summary pieces (kept/cleaned) */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-inner {
+  background: #fff;
+  padding: 24px;
+  max-width: 800px;
+  width: 95%;
+  max-height: 90vh;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  overflow-y: auto;
+  position: relative;
+}
+
+.modal-inner h3 {
+  margin-top: 0;
+  color: var(--dark-violet);
+  border-bottom: 2px solid var(--vibrant-violet);
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+
+.modal-inner textarea {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+
+/* Search enhancements */
+#search-container {
+  position: relative;
+}
+
+#search-type {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 10px;
+  background: white;
+  font-size: 14px;
+}
+
+#search-examples {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+#search-input {
+  border: none;
+  padding: 12px 18px;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(27,0,48,0.04);
+  max-width: 720px;
+  display: block;
+  margin: 6px auto;
+  background: white;
+  font-size: 15px;
+  color: var(--dark-violet);
+}
+
+#search-input:focus {
+  outline: 2px solid rgba(138,63,252,0.12);
+}
+
+/* Similarity indicators for semantic search */
+.similarity-bar {
+  height: 4px;
+  border-radius: 2px;
+  margin-bottom: 8px;
+}
+
+.similarity-text {
+  font-size: 11px;
+  color: #7f8c8d;
+  margin-bottom: 4px;
+}
+
+/* Search type badges */
+.search-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  background: #f3eaff;
+  color: var(--deep-violet);
+  border-radius: 3px;
+  font-size: 10px;
+  margin-left: 8px;
+}
+
+/* Loading state */
+.search-loading {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+}
+
+/* Enhanced card styles for search results */
+.card.highlight {
+  border-left: 4px solid var(--vibrant-violet);
+  background: #fbf9fe;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  #search-type {
+    font-size: 12px;
+  }
+  #search-examples {
+    font-size: 11px;
+  }
+  #cards {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+/* Summary and misc */
+#summary-status {
+  font-size: 11px;
+  color: #7f8c8d;
+  text-align: center;
+  min-height: 16px;
+}
+
+#summary-status.generating { color: #f39c12; font-weight: bold; }
+#summary-status.success { color: #27ae60; font-weight: bold; }
+#summary-status.error { color: #e74c3c; font-weight: bold; }
+
+#generate-summary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+#summary-text { background: #f8f9fa; border: 1px solid #e9ecef; }
+
+#search-input:focus {
+  border-color: #3498db;
+  outline: none;
+}
+
+/* Summary section styling */
+#summary-status {
+  font-size: 11px;
+  color: #7f8c8d;
+  text-align: center;
+  min-height: 16px;
+  margin-top: 4px;
+}
+
+#summary-status.generating {
+  color: #f39c12;
+  font-weight: bold;
+}
+
+#summary-status.success {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+#summary-status.error {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+/* Generate summary button states */
+#generate-summary:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Summary textarea styling */
+#summary-text {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  transition: border-color 0.3s ease;
+}
+
+#summary-text:focus {
+  border-color: #3498db;
+  background: #fff;
+}
+
+#screenshot-wrapper {
+  width: 100%;
+  max-height: 400px;
+  background: var(--soft-orchid);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}

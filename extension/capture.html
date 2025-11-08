@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Save Context</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h2>Save Context</h2>
+      <div id="screenshot-wrapper"></div>
+
+      <label>Page title</label>
+      <div id="page-title" class="meta"></div>
+
+      <!-- Image Description Section -->
+      <label>Image Analysis (AI-detected content)</label>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <textarea id="image-description" rows="3" placeholder="AI will analyze what's in the screenshot..." style="flex:1"></textarea>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <button id="analyze-image">Analyze Image</button>
+          <div id="image-status" style="font-size:12px;color:#666;">&nbsp;</div>
+        </div>
+      </div>
+
+      <label>Extracted page text</label>
+      <textarea id="page-text" rows="6" readonly></textarea>
+
+  <label>Summary</label>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <textarea id="summary-text" rows="4" placeholder="Auto-generated summary (editable)" style="flex:1"></textarea>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <button id="generate-summary">Generate summary</button>
+          <div id="summary-status" style="font-size:12px;color:#666;">&nbsp;</div>
+        </div>
+      </div>
+
+      <label>Context (your notes)</label>
+      <input id="context-input" placeholder="Short summary or tags" />
+
+      <label>Remainder time</label>
+      <input id="remainder" type="datetime-local" />
+
+      <div class="form-actions">
+        <button id="save-btn">Save</button>
+        <button id="cancel-btn">Cancel</button>
+      </div>
+
+      <div id="status" class="status"></div>
+    </div>
+
+    <script src="db.js"></script>
+    <script src="capture.js"></script>
+  </body>
+</html>

@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Context Screenshot Saver",
+  "version": "1.0",
+  "description": "Take a screenshot, capture page text and save a context with a remainder time via Alt+S.",
+  "permissions": ["storage", "scripting", "activeTab", "tabs", "commands", "notifications", "alarms"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": {
+      "48": "icons/icon48.svg"
+    },
+    "default_title": "Context Screenshot Saver"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "take-screenshot": {
+      "suggested_key": { "default": "Alt+S" },
+      "description": "Take screenshot and save context"
+    }
+  },
+  "icons": {
+    "48": "icons/icon48.svg"
+  },
+  "options_ui": {
+    "page": "popup.html",
+    "open_in_tab": true
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["capture.html", "capture.js", "styles.css", "db.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
