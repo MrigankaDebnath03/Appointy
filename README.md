@@ -142,4 +142,9 @@ This project does not include a license file. If you want to open source it, add
 - To run locally: clone -> (optionally configure Mistral key) -> load `extension/` as an unpacked extension in Chrome/Edge.
 - For secure, production-ready deployments, move the API key server-side and have the extension call your backend.
 
+ ## Video Explanation( Google Drive Link)
+
+- Google Drive Link -> https://drive.google.com/file/d/1ACUNceLobhkz1vtCzxO4O98QJVRtxs4O/view?usp=sharing
+
+
 
