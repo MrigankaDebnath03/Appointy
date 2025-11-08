@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const res = await new Promise((resolve) => chrome.storage.local.get(['current_capture'], resolve));
   const current = res.current_capture || {};
 
-  console.log('Current capture data:', current); // Debug log
+  console.log('Current capture data:', current);
 
   // Extract text and title properly
   let extractedText = '';
@@ -33,7 +33,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // If we still don't have a title, try to get it from the tab
   if (!pageTitle && current.title) {
     pageTitle = current.title;
   }
@@ -83,31 +82,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     const generateTags = (summary, imageDesc) => {
       const tags = new Set();
       
-      // Helper to extract key terms
       const extractTerms = (text) => {
         if (!text) return [];
         
-        // Remove special characters and split into words
         const words = text.toLowerCase()
           .replace(/[^\w\s]/g, ' ')
           .split(/\s+/)
-          .filter(w => w.length > 3);  // Filter out short words
+          .filter(w => w.length > 3);
           
-        // Remove common words
         const commonWords = new Set(['this', 'that', 'these', 'those', 'there', 'their', 'they', 'what', 'where', 'when', 'have', 'with']);
         return words.filter(w => !commonWords.has(w));
       };
       
-      // Extract terms from summary
       if (summary) {
         const summaryTerms = extractTerms(summary);
-        summaryTerms.slice(0, 5).forEach(term => tags.add(term)); // Take top 5 terms
+        summaryTerms.slice(0, 5).forEach(term => tags.add(term));
       }
       
-      // Extract terms from image description
       if (imageDesc) {
         const imageTerms = extractTerms(imageDesc);
-        imageTerms.slice(0, 5).forEach(term => tags.add(term)); // Take top 5 terms
+        imageTerms.slice(0, 5).forEach(term => tags.add(term));
       }
       
       return Array.from(tags);
@@ -131,20 +125,40 @@ document.addEventListener('DOMContentLoaded', async () => {
       tags: generatedTags
     };
 
-    console.log('Saving record:', { // Debug log
-      pageTextLength: record.pageText.length,
-      title: record.title,
-      url: record.url
-    });
+    // Create searchable text for embedding
+    const searchableText = [
+      record.title,
+      record.context,
+      record.summary,
+      record.imageDescription,
+      record.tags.join(' ')
+    ].filter(Boolean).join(' ').trim();
+
+    console.log('Saving record with searchable text length:', searchableText.length);
 
     try {
+      // Generate embedding before saving
+      statusEl.textContent = 'Generating search embedding...';
+      
+      if (searchableText && searchableText.length > 10) {
+        try {
+          const embedding = await window.db.generateEmbedding(searchableText);
+          record.embedding = embedding;
+          record.searchableText = searchableText;
+          console.log('Generated embedding with dimension:', embedding.length);
+        } catch (embError) {
+          console.warn('Failed to generate embedding, will use fallback during search:', embError);
+          record.searchableText = searchableText;
+        }
+      }
+
+      statusEl.textContent = 'Saving context...';
       const recordId = await window.db.addRecord(record);
-      console.log('Saved with ID:', recordId); // Debug log
+      console.log('Saved with ID:', recordId);
       
       statusEl.textContent = 'Saved successfully!';
       statusEl.className = 'status success';
       
-      // Clear temporary storage and close
       chrome.storage.local.remove('current_capture', () => {
         setTimeout(() => {
           window.close();
@@ -205,7 +219,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
         
-        // Handle the response from background
         if (response && !response.ok) {
           console.error('Summarization failed:', response.error);
           if (summaryStatus) summaryStatus.textContent = 'Failed: ' + response.error;

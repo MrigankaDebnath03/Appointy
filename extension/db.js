@@ -1,7 +1,7 @@
 // Enhanced IndexedDB wrapper with semantic search
-const DB_NAME = 'contexts_db_v3'; // Updated version for semantic search
+const DB_NAME = 'contexts_db_v4';
 const STORE_NAME = 'contexts';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 // Mistral AI configuration for embeddings
 const MISTRAL_API_KEY = 'VGcaKfOvWKU919LBJQVWrSnfymCJO8VZ';
@@ -12,21 +12,29 @@ function openDB() {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
+      
+      let store;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+        store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
         store.createIndex('savedAt', 'savedAt', { unique: false });
         store.createIndex('url', 'url', { unique: false });
         store.createIndex('title', 'title', { unique: false });
         store.createIndex('embedding', 'embedding', { unique: false });
-        // Add index for reminders
         store.createIndex('remainderTime', 'remainderTime', { unique: false });
+        store.createIndex('searchableText', 'searchableText', { unique: false });
+      } else {
+        const transaction = e.target.transaction;
+        store = transaction.objectStore(STORE_NAME);
       }
       
-      // Migrate existing data if needed
+      // Migrate existing data
+      if (e.oldVersion < 4) {
+        if (!store.indexNames.contains('searchableText')) {
+          store.createIndex('searchableText', 'searchableText', { unique: false });
+        }
+      }
+      
       if (e.oldVersion < 2) {
-        const transaction = e.target.transaction;
-        const store = transaction.objectStore(STORE_NAME);
-        // Add new indexes if they don't exist
         if (!store.indexNames.contains('url')) {
           store.createIndex('url', 'url', { unique: false });
         }
@@ -46,7 +54,6 @@ async function addRecord(record) {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     
-    // Add timestamp if not present
     if (!record.savedAt) {
       record.savedAt = Date.now();
     }
@@ -122,13 +129,11 @@ const RATE_LIMIT = {
   requestsPerMinute: 30,
   requests: [],
   maxRetries: 3,
-  retryDelay: 2000 // 2 seconds
+  retryDelay: 2000
 };
 
-// Function to check rate limit
 function checkRateLimit() {
   const now = Date.now();
-  // Remove requests older than 1 minute
   RATE_LIMIT.requests = RATE_LIMIT.requests.filter(time => now - time < 60000);
   
   if (RATE_LIMIT.requests.length >= RATE_LIMIT.requestsPerMinute) {
@@ -139,20 +144,16 @@ function checkRateLimit() {
   return 0;
 }
 
-// Function to generate embeddings using Mistral AI
 async function generateEmbedding(text, retryCount = 0) {
   try {
-    // Check rate limit
     const waitTime = checkRateLimit();
     if (waitTime > 0) {
       console.log(`Rate limit hit, waiting ${waitTime}ms before retry...`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
 
-    // Limit text length for embeddings
     const content = text.length > 8000 ? text.substring(0, 8000) + '...' : text;
     
-    // Add request to rate limit tracking
     RATE_LIMIT.requests.push(Date.now());
     
     const response = await fetch(MISTRAL_EMBEDDINGS_URL, {
@@ -169,7 +170,6 @@ async function generateEmbedding(text, retryCount = 0) {
 
     if (!response.ok) {
       if (response.status === 429 && retryCount < RATE_LIMIT.maxRetries) {
-        // Rate limit hit, wait and retry
         console.log(`Rate limit hit (429), attempt ${retryCount + 1} of ${RATE_LIMIT.maxRetries}...`);
         await new Promise(resolve => setTimeout(resolve, RATE_LIMIT.retryDelay));
         return generateEmbedding(text, retryCount + 1);
@@ -182,17 +182,14 @@ async function generateEmbedding(text, retryCount = 0) {
   } catch (error) {
     console.error('Embedding generation failed:', error);
     if (error.message.includes('429') && retryCount < RATE_LIMIT.maxRetries) {
-      // Rate limit hit, wait and retry
       console.log(`Rate limit hit, attempt ${retryCount + 1} of ${RATE_LIMIT.maxRetries}...`);
       await new Promise(resolve => setTimeout(resolve, RATE_LIMIT.retryDelay));
       return generateEmbedding(text, retryCount + 1);
     }
-    // Return a simple hash-based fallback embedding
     return generateFallbackEmbedding(text);
   }
 }
 
-// Simple fallback embedding using text characteristics
 function generateFallbackEmbedding(text) {
   const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 2);
   const embedding = new Array(128).fill(0);
@@ -207,7 +204,6 @@ function generateFallbackEmbedding(text) {
   return magnitude > 0 ? embedding.map(val => val / magnitude) : embedding;
 }
 
-// Cosine similarity calculation
 function cosineSimilarity(vecA, vecB) {
   if (vecA.length !== vecB.length) return 0;
   
@@ -225,47 +221,53 @@ function cosineSimilarity(vecA, vecB) {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-// Semantic search using embeddings
 async function semanticSearch(query, similarityThreshold = 0.3) {
   try {
     console.log('Starting semantic search for:', query);
     
-    // Generate embedding for the query
     const queryEmbedding = await generateEmbedding(query);
+    console.log('Query embedding generated, dimension:', queryEmbedding.length);
     
-    // Get all records
     const allRecords = await getAllRecords();
+    console.log('Total records to search:', allRecords.length);
+    
     const results = [];
     
-    // Collect records needing embeddings
-    const recordsNeedingEmbeddings = [];
     for (const record of allRecords) {
-      if (!record.embedding && record.searchableText) {
-        recordsNeedingEmbeddings.push(record);
-      }
-    }
-
-    // Generate embeddings in batches
-    if (recordsNeedingEmbeddings.length > 0) {
-      console.log(`Generating embeddings for ${recordsNeedingEmbeddings.length} records...`);
-      for (const record of recordsNeedingEmbeddings) {
-        // Generate embedding on-the-fly for existing records
-        const recordEmbedding = await generateEmbedding(record.searchableText);
-        
-        // Cache the embedding in the database
-        if (recordEmbedding) {
-          record.embedding = recordEmbedding;
-          await updateRecordEmbedding(record.id, recordEmbedding);
-        }
-      }
-    }
-
-    // Process all records
-    for (const record of allRecords) {
-      // Use existing or newly generated embedding
       let recordEmbedding = record.embedding;
       
-      if (recordEmbedding) {
+      if (!recordEmbedding) {
+        let searchableText = record.searchableText;
+        
+        if (!searchableText) {
+          searchableText = [
+            record.title,
+            record.context,
+            record.summary,
+            record.imageDescription,
+            record.tags?.join(' ')
+          ].filter(Boolean).join(' ').trim();
+        }
+        
+        if (searchableText && searchableText.length > 10) {
+          console.log(`Generating embedding for record ${record.id}...`);
+          
+          try {
+            recordEmbedding = await generateEmbedding(searchableText);
+            record.embedding = recordEmbedding;
+            record.searchableText = searchableText;
+            await updateRecordEmbedding(record.id, recordEmbedding, searchableText);
+          } catch (embError) {
+            console.warn(`Failed to generate embedding for record ${record.id}:`, embError);
+            continue;
+          }
+        } else {
+          console.log(`Record ${record.id} has insufficient searchable text`);
+          continue;
+        }
+      }
+      
+      if (recordEmbedding && recordEmbedding.length === queryEmbedding.length) {
         const similarity = cosineSimilarity(queryEmbedding, recordEmbedding);
         
         if (similarity >= similarityThreshold) {
@@ -274,24 +276,24 @@ async function semanticSearch(query, similarityThreshold = 0.3) {
             similarity: similarity
           });
         }
+      } else {
+        console.warn(`Embedding dimension mismatch for record ${record.id}`);
       }
     }
     
-    // Sort by similarity score (highest first)
     results.sort((a, b) => b.similarity - a.similarity);
     
-    console.log(`Semantic search found ${results.length} results`);
+    console.log(`Semantic search found ${results.length} results above threshold ${similarityThreshold}`);
     return results;
     
   } catch (error) {
     console.error('Semantic search failed:', error);
-    // Fall back to keyword search
+    console.log('Falling back to keyword search...');
     return searchRecords(query);
   }
 }
 
-// Update record with embedding
-async function updateRecordEmbedding(id, embedding) {
+async function updateRecordEmbedding(id, embedding, searchableText) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -302,6 +304,9 @@ async function updateRecordEmbedding(id, embedding) {
       const record = getReq.result;
       if (record) {
         record.embedding = embedding;
+        if (searchableText) {
+          record.searchableText = searchableText;
+        }
         const updateReq = store.put(record);
         updateReq.onsuccess = () => resolve();
         updateReq.onerror = () => reject(updateReq.error);
@@ -313,7 +318,6 @@ async function updateRecordEmbedding(id, embedding) {
   });
 }
 
-// Hybrid search - combines keyword and semantic search
 async function hybridSearch(query) {
   console.log('Performing hybrid search for:', query);
   
@@ -322,7 +326,6 @@ async function hybridSearch(query) {
     semanticSearch(query)
   ]);
   
-  // Combine and deduplicate results
   const combined = [...keywordResults, ...semanticResults];
   const seen = new Set();
   const uniqueResults = [];
@@ -335,7 +338,6 @@ async function hybridSearch(query) {
     }
   }
   
-  // Sort by relevance (keyword matches first, then semantic similarity)
   uniqueResults.sort((a, b) => {
     const aIsKeyword = keywordResults.some(r => r.id === a.id);
     const bIsKeyword = keywordResults.some(r => r.id === b.id);
@@ -343,7 +345,6 @@ async function hybridSearch(query) {
     if (aIsKeyword && !bIsKeyword) return -1;
     if (!aIsKeyword && bIsKeyword) return 1;
     
-    // Both are semantic results, sort by similarity
     if (a.similarity && b.similarity) {
       return b.similarity - a.similarity;
     }
@@ -354,7 +355,6 @@ async function hybridSearch(query) {
   return uniqueResults;
 }
 
-// Update record with a reminder
 async function updateReminder(id, reminderTime) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -377,7 +377,6 @@ async function updateReminder(id, reminderTime) {
   });
 }
 
-// Get all records with pending reminders
 async function getPendingReminders() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -392,7 +391,6 @@ async function getPendingReminders() {
   });
 }
 
-// Export functions to global scope
 window.db = { 
   addRecord, 
   getAllRecords, 
