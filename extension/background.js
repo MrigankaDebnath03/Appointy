@@ -227,37 +227,84 @@ chrome.commands.onCommand.addListener((command) => {
   });
 });
 
-// Accept runtime messages from capture window to trigger summarization on demand
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (!msg || msg.type !== 'generateSummary') return;
-  
-  chrome.storage.local.get(['current_capture'], async (res) => {
-    const cur = res.current_capture || null;
-    if (!cur || !cur.text) {
-      sendResponse({ ok: false, error: 'no_text' });
-      return;
-    }
-    
-    try {
-      console.log('Manual summarization requested for text length:', cur.text.length);
-      const summary = await generateSummaryWithMistral(cur.text, cur.title, cur.url);
-      console.log('Manual summarization successful');
-      
-      cur.summary = summary;
-      chrome.storage.local.set({ current_capture: cur }, () => {
-        if (chrome.runtime.lastError) {
-          console.error('storage.set error updating summary:', chrome.runtime.lastError.message);
+// Function to analyze images with Mistral AI
+async function analyzeImageWithMistral(base64) {
+  const response = await fetch(MISTRAL_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${MISTRAL_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: 'pixtral-12b',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Describe this image in detail.' },
+            { type: 'image_url', image_url: base64 }
+          ]
         }
-        chrome.runtime.sendMessage({ type: 'summaryReady', summary });
-        sendResponse({ ok: true, summary });
-      });
-    } catch (error) {
-      console.error('Manual summarization failed:', error);
-      sendResponse({ ok: false, error: String(error) });
-    }
+      ],
+      max_tokens: 300
+    })
   });
-  
-  return true; // Indicates async response
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Mistral API error:', response.status, response.statusText, errorText);
+    throw new Error(`Mistral API error: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content?.trim() || '';
+}
+
+// Accept runtime messages for summarization and image analysis
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'generateSummary') {
+    chrome.storage.local.get(['current_capture'], async (r) => {
+      const c = r.current_capture || {};
+      if (!c.text) {
+        sendResponse({ ok: false, error: 'no_text' });
+        return;
+      }
+      try {
+        const s = await generateSummaryWithMistral(c.text, c.title, c.url);
+        c.summary = s;
+        chrome.storage.local.set({ current_capture: c }, () => {
+          chrome.runtime.sendMessage({ type: 'summaryReady', summary: s });
+          sendResponse({ ok: true, summary: s });
+        });
+      } catch (e) {
+        console.error('Summarization failed:', e);
+        sendResponse({ ok: false, error: String(e) });
+      }
+    });
+    return true;
+  }
+
+  if (msg.type === 'analyzeImage') {
+    chrome.storage.local.get(['current_capture'], async (r) => {
+      const c = r.current_capture || {};
+      if (!c.screenshot) {
+        sendResponse({ ok: false, error: 'no_screenshot' });
+        return;
+      }
+      try {
+        const desc = await analyzeImageWithMistral(c.screenshot);
+        c.imageDescription = desc;
+        chrome.storage.local.set({ current_capture: c }, () => {
+          chrome.runtime.sendMessage({ type: 'imageAnalysisReady', description: desc });
+          sendResponse({ ok: true, description: desc });
+        });
+      } catch (e) {
+        console.error('Image analysis failed:', e);
+        sendResponse({ ok: false, error: String(e) });
+      }
+    });
+    return true;
+  }
 });
 
 // When the user clicks the extension action (toolbar icon), open the full view

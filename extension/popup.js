@@ -166,6 +166,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       let displayText = '';
       if (item.summary && item.summary.trim()) {
         displayText = item.summary;
+      } else if (item.imageDescription && item.imageDescription.trim()) {
+        displayText = 'Image Analysis: ' + item.imageDescription;
       } else if (item.pageText && item.pageText.trim()) {
         displayText = item.pageText;
       } else {
@@ -263,24 +265,53 @@ document.addEventListener('DOMContentLoaded', async () => {
       inner.appendChild(img);
     }
 
-    // AI Summary
-    if (item.summary && item.summary.trim()) {
-      const summaryLabel = document.createElement('div');
-      summaryLabel.textContent = 'AI Summary:';
-      summaryLabel.style.fontWeight = 'bold';
-      summaryLabel.style.marginBottom = '8px';
-      inner.appendChild(summaryLabel);
+    // AI Analysis Section (Summary + Image Analysis)
+    if (item.summary || item.imageDescription) {
+      const aiSection = document.createElement('div');
+      aiSection.style.marginBottom = '20px';
 
-      const summaryArea = document.createElement('div');
-      summaryArea.style.padding = '12px';
-      summaryArea.style.background = '#f8f9fa';
-      summaryArea.style.borderRadius = '4px';
-      summaryArea.style.border = '1px solid #e9ecef';
-      summaryArea.style.marginBottom = '16px';
-      summaryArea.style.whiteSpace = 'pre-wrap';
-      summaryArea.style.lineHeight = '1.5';
-      summaryArea.textContent = item.summary;
-      inner.appendChild(summaryArea);
+      // AI Summary
+      if (item.summary && item.summary.trim()) {
+        const summaryLabel = document.createElement('div');
+        summaryLabel.textContent = 'AI Summary:';
+        summaryLabel.style.fontWeight = 'bold';
+        summaryLabel.style.marginBottom = '8px';
+        aiSection.appendChild(summaryLabel);
+
+        const summaryArea = document.createElement('div');
+        summaryArea.style.padding = '12px';
+        summaryArea.style.background = '#f8f9fa';
+        summaryArea.style.borderRadius = '4px';
+        summaryArea.style.border = '1px solid #e9ecef';
+        summaryArea.style.marginBottom = '16px';
+        summaryArea.style.whiteSpace = 'pre-wrap';
+        summaryArea.style.lineHeight = '1.5';
+        summaryArea.textContent = item.summary;
+        aiSection.appendChild(summaryArea);
+      }
+
+      // Image Analysis
+      if (item.imageDescription && item.imageDescription.trim()) {
+        const imageLabel = document.createElement('div');
+        imageLabel.textContent = 'AI Image Analysis:';
+        imageLabel.style.fontWeight = 'bold';
+        imageLabel.style.marginBottom = '8px';
+        imageLabel.style.marginTop = '16px';
+        aiSection.appendChild(imageLabel);
+
+        const imageAnalysisArea = document.createElement('div');
+        imageAnalysisArea.style.padding = '12px';
+        imageAnalysisArea.style.background = '#f0f7ff';
+        imageAnalysisArea.style.borderRadius = '4px';
+        imageAnalysisArea.style.border = '1px solid #cce5ff';
+        imageAnalysisArea.style.marginBottom = '16px';
+        imageAnalysisArea.style.whiteSpace = 'pre-wrap';
+        imageAnalysisArea.style.lineHeight = '1.5';
+        imageAnalysisArea.textContent = item.imageDescription;
+        aiSection.appendChild(imageAnalysisArea);
+      }
+
+      inner.appendChild(aiSection);
     }
 
     // Page Text
